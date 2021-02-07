@@ -1,6 +1,6 @@
 use std::result::Result;
 use std::error::Error;
 
-fn main() -> Reuslt<(), Box<dyn<Error>> {
-  ()
+fn main() -> Result<(), Box<dyn Error>> {
+  Ok(())
 }
