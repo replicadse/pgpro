@@ -24,3 +24,5 @@ categories = ["command-line-utilities"]
 async-trait = "0.1.24"
 clap = "2.33.0"
 dialoguer = "0.7.1"
+pgp = "0.7.1"
+futures = "0.3.1"
