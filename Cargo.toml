@@ -12,7 +12,7 @@ keywords = ["pgp"]
 categories = ["command-line-utilities"]
 
 [features]
-  default = [""]
+  default = []
 
 [profile]
   [dev]

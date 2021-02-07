@@ -12,8 +12,6 @@ jobs:
           features: ""
         - name: "all"
           features: --all-features
-        - name: "backend+ui"
-          features: --features "backend+ui" --no-default-features
     steps:
     - uses: actions/checkout@v1
     - name: install tools
