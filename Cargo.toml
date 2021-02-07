@@ -1,0 +1,26 @@
+[package]
+name = "pgpro"
+version = "0.0.0"
+authors = ["Heiko Alexander Weber <haw@voidpointergroup.com>"]
+edition = "2018"
+license = "MIT"
+description = "pgpro"
+readme = "docs/README.md"
+homepage = "https://replicadse.github.io/pgpro/"
+repository = "https://github.com/replicadse/pgpro"
+keywords = ["pgp"]
+categories = ["command-line-utilities"]
+
+[features]
+  default = [""]
+
+[profile]
+  [dev]
+    opt-level = 0
+  [release]
+    opt-level = 3
+
+[dependencies]
+async-trait = "0.1.24"
+clap = "2.33.0"
+dialoguer = "0.7.1"
