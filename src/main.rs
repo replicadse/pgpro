@@ -1,4 +1,4 @@
-use pgp::types::KeyTrait;
+use pgp::{Deserializable, Message, PublicKey, types::{KeyTrait, SecretKeyTrait}};
 use pgp::SignedSecretKey;
 use pgp::SecretKeyParams;
 use futures::executor::block_on;
@@ -14,27 +14,34 @@ use smallvec::smallvec;
 
 mod args;
 
-async fn message() -> Result<(), Box<dyn Error>> {
-    Ok(())
-    // let mut decrypt_key_file = File::open("key.asc").unwrap();
-    // let (decrypt_key, _headers) = SignedSecretKey::from_armor_single(&mut decrypt_key_file).unwrap();
-    // let message_file_path = "msg.asc";
-    // let message_file = std::fs::read(message_file_path).unwrap();
-    // let (message, _headers) = Message::from_armor_single(Cursor::new(message_file.clone())).unwrap();
-    // message.decrypt(
-    //     || "".to_string(),
-    //     || "test".to_string(),
-    //     &[&decrypt_key][..],
-    // )?;
-    // Ok(())
+async fn message(key: &PublicKey) -> Result<String, Box<dyn Error>> {
+    let msg = Message::new_literal("", "hi").compress(CompressionAlgorithm::ZLIB)?;
+    let mut rng = rand::thread_rng();
+    let msgenc = msg.encrypt_to_keys(&mut rng, SymmetricKeyAlgorithm::AES256, &[&key][..])?;
+    let msgstr = msgenc.to_armored_string(None)?;
+    println!("{}", &msgstr);
+    Ok(msgstr)
+}
+
+async fn message2(msg: &str, key: &SignedSecretKey) -> Result<String, Box<dyn Error>> {
+    let msg_t = Message::from_string(msg)?;
+    let mut msg_d = msg_t.0.decrypt(
+        || "".to_owned(), 
+        || "test".to_owned(), 
+        &[key])?;
+    let mut msg_dec = msg_d.0.next().unwrap()?;
+    msg_dec = msg_dec.decompress()?;
+    Ok(String::from_utf8(msg_dec.get_content()?.unwrap())?)
 }
 
 async fn main_async() -> Result<(), Box<dyn Error>> {
-    let _cmd = args::ClapArgumentLoader::load().await?;
+    let cmd = args::ClapArgumentLoader::load().await?;
 
-    let x: SignedSecretKey = generate().await?;
-    store(&x).await?;
-    list().await?;
+    // let x: SignedSecretKey = generate().await?;
+    // let msg = message(&x.public_key()).await?;
+    // println!("{}", message2(&msg, &x).await?);
+    // store(&x).await?;
+    // list().await?;
 
     Ok(())
 }

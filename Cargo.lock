@@ -919,6 +919,7 @@ dependencies = [
  "futures",
  "hex 0.3.2",
  "pgp",
+ "rand 0.7.3",
  "sled",
  "smallvec",
 ]
