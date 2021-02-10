@@ -7,7 +7,7 @@ use pgp::{types::KeyTrait, Deserializable, SignedSecretKey};
 pub trait Database {
     async fn store(&self, key: &SignedSecretKey) -> Result<(), Box<dyn Error>>;
     async fn read(&self, fingerprint: &str) -> Result<SignedSecretKey, Box<dyn Error>>;
-    async fn list(&self) -> Result<Vec<String>, Box<dyn Error>>;
+    async fn list(&self) -> Result<Vec<SignedSecretKey>, Box<dyn Error>>;
 }
 
 pub struct SledDatabase {
@@ -35,17 +35,17 @@ impl Database for SledDatabase {
         let tree = sled::open(&self.path)?;
         let v = tree
             .get(hex::decode(fingerprint)?)?
-            .ok_or(crate::error::NotFoundError::new(fingerprint))?;
+            .ok_or_else(|| crate::error::NotFoundError::new(fingerprint))?;
         let key = SignedSecretKey::from_armor_single(Cursor::new(v.to_vec()))?;
         Ok(key.0)
     }
 
-    async fn list(&self) -> Result<Vec<String>, Box<dyn Error>> {
+    async fn list(&self) -> Result<Vec<SignedSecretKey>, Box<dyn Error>> {
         let tree = sled::open(&self.path)?;
-        let mut keys = std::vec::Vec::<String>::new();
+        let mut keys = std::vec::Vec::<SignedSecretKey>::new();
         for e in tree.iter() {
             let v = e?;
-            keys.push(hex::encode(&v.0));
+            keys.push(SignedSecretKey::from_armor_single(Cursor::new(&v.1))?.0);
         }
         Ok(keys)
     }

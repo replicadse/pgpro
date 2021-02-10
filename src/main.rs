@@ -37,7 +37,18 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
         }
         Command::ListKeys => {
             for k in create_db().await?.list().await? {
-                println!("Fingerprint: {}", k.to_ascii_uppercase());
+                println!("Fingerprint: \t{}", hex::encode(k.fingerprint()));
+                println!("ID: \t\t{}", hex::encode(k.key_id()));
+                print!("Capabilities: \t");
+                let mut capabilities = Vec::<String>::new();
+                if k.is_signing_key() {
+                    capabilities.push("sign".to_owned());
+                }
+                if k.is_encryption_key() {
+                    capabilities.push("encrypt".to_owned());
+                }
+                println!("{}", capabilities.join(", "));
+                println!();
             }
         }
         Command::Encrypt { key, msg } => {
