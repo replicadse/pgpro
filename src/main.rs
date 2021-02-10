@@ -3,7 +3,7 @@ use pgp::{Deserializable, Message, PublicKey, types::{KeyTrait, SecretKeyTrait}}
 use pgp::SignedSecretKey;
 use pgp::SecretKeyParams;
 use futures::executor::block_on;
-use std::{error::Error, io::{Cursor, Write, stdout}};
+use std::{error::Error, io::{Cursor, Write}};
 use std::result::Result;
 use pgp::composed::{
     KeyType, SecretKey, SecretKeyParamsBuilder,
@@ -50,7 +50,7 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
             }
         }
         Command::Encrypt {
-            key, pass, msg,
+            key, msg,
         } => {
             let key = get(&key.unwrap()).await?;
             let msg = Message::new_literal("", &msg.unwrap())

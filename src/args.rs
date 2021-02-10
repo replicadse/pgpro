@@ -39,7 +39,6 @@ pub enum Command {
     ListKeys,
     Encrypt {
         key: Option<String>,
-        pass: Option<String>,
         msg: Option<String>,
     },
     Decrypt {
@@ -110,14 +109,6 @@ impl ClapArgumentLoader {
                     .short("k")
                     .long("key")
                     .value_name("KEY")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("pass")
-                    .short("p")
-                    .long("pass")
-                    .value_name("PASS")
                     .help("")
                     .multiple(false)
                     .required(false)
@@ -196,7 +187,6 @@ impl ClapArgumentLoader {
                 privilege,
                 command: Command::Encrypt {
                     key: v.value_of("key").map(|v| v.to_owned()),
-                    pass: load_arg(v.value_of("pass"))?,
                     msg: load_arg(v.value_of("message"))?,
                 },
             })
