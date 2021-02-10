@@ -1,5 +1,5 @@
-use std::{fs::File, io::Read, path::Path, result::Result};
 use std::error::Error;
+use std::{fs::File, io::Read, path::Path, result::Result};
 
 use crate::error::ArgumentError;
 
@@ -45,7 +45,7 @@ pub enum Command {
         key: Option<String>,
         pass: Option<String>,
         msg: Option<String>,
-    }
+    },
 }
 
 pub struct ClapArgumentLoader {}
@@ -65,88 +65,108 @@ impl ClapArgumentLoader {
                     .required(false)
                     .takes_value(false),
             )
-            .subcommand(clap::App::new("generate-key")
-                .about("")
-                .arg(clap::Arg::with_name("pass")
-                    .short("p")
-                    .long("pass")
-                    .value_name("PASS")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("bytes")
-                    .short("b")
-                    .long("bytes")
-                    .value_name("LENGTH")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("algorithm")
-                    .short("t")
-                    .long("type")
-                    .value_name("ALGORITHM")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("owner")
-                    .short("o")
-                    .long("owner")
-                    .value_name("OWNER")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
+            .subcommand(
+                clap::App::new("generate-key")
+                    .about("")
+                    .arg(
+                        clap::Arg::with_name("pass")
+                            .short("p")
+                            .long("pass")
+                            .value_name("PASS")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    )
+                    .arg(
+                        clap::Arg::with_name("bytes")
+                            .short("b")
+                            .long("bytes")
+                            .value_name("LENGTH")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    )
+                    .arg(
+                        clap::Arg::with_name("algorithm")
+                            .short("t")
+                            .long("type")
+                            .value_name("ALGORITHM")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    )
+                    .arg(
+                        clap::Arg::with_name("owner")
+                            .short("o")
+                            .long("owner")
+                            .value_name("OWNER")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    ),
             )
-            .subcommand(clap::App::new("list-keys")
-                .about("")
+            .subcommand(clap::App::new("list-keys").about(""))
+            .subcommand(
+                clap::App::new("encrypt")
+                    .about("")
+                    .arg(
+                        clap::Arg::with_name("key")
+                            .short("k")
+                            .long("key")
+                            .value_name("KEY")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    )
+                    .arg(
+                        clap::Arg::with_name("message")
+                            .short("m")
+                            .long("message")
+                            .value_name("MESSAGE")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    ),
             )
-            .subcommand(clap::App::new("encrypt")
-                .about("")
-                .arg(clap::Arg::with_name("key")
-                    .short("k")
-                    .long("key")
-                    .value_name("KEY")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("message")
-                    .short("m")
-                    .long("message")
-                    .value_name("MESSAGE")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)))
-            .subcommand(clap::App::new("decrypt")
-                .about("")
-                .arg(clap::Arg::with_name("key")
-                    .short("k")
-                    .long("key")
-                    .value_name("KEY")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("pass")
-                    .short("p")
-                    .long("pass")
-                    .value_name("PASS")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
-                .arg(clap::Arg::with_name("message")
-                    .short("m")
-                    .long("message")
-                    .value_name("MESSAGE")
-                    .help("")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true))
+            .subcommand(
+                clap::App::new("decrypt")
+                    .about("")
+                    .arg(
+                        clap::Arg::with_name("key")
+                            .short("k")
+                            .long("key")
+                            .value_name("KEY")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    )
+                    .arg(
+                        clap::Arg::with_name("pass")
+                            .short("p")
+                            .long("pass")
+                            .value_name("PASS")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    )
+                    .arg(
+                        clap::Arg::with_name("message")
+                            .short("m")
+                            .long("message")
+                            .value_name("MESSAGE")
+                            .help("")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true),
+                    ),
             )
             .get_matches();
 
@@ -163,7 +183,7 @@ impl ClapArgumentLoader {
                     let mut buf = String::new();
                     file.read_to_string(&mut buf)?;
                     Ok(Some(buf))
-                },
+                }
                 None => Ok(None),
             }
         }
@@ -201,7 +221,8 @@ impl ClapArgumentLoader {
             })
         } else {
             Err(Box::new(ArgumentError::new("unrecognized subcommand")) as Box<dyn Error>)
-        }.unwrap();
+        }
+        .unwrap();
 
         callargs.validate().await?;
         Ok(callargs)

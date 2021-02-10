@@ -1,13 +1,13 @@
 use std::{error::Error, io::Cursor};
 
 use async_trait::async_trait;
-use pgp::{Deserializable, SignedSecretKey, types::KeyTrait};
+use pgp::{types::KeyTrait, Deserializable, SignedSecretKey};
 
 #[async_trait]
 pub trait Database {
     async fn store(&self, key: &SignedSecretKey) -> Result<(), Box<dyn Error>>;
     async fn read(&self, fingerprint: &str) -> Result<SignedSecretKey, Box<dyn Error>>;
-    async fn list(&self, ) -> Result<Vec<String>, Box<dyn Error>>;
+    async fn list(&self) -> Result<Vec<String>, Box<dyn Error>>;
 }
 
 pub struct SledDatabase {
@@ -33,14 +33,14 @@ impl Database for SledDatabase {
 
     async fn read(&self, fingerprint: &str) -> Result<SignedSecretKey, Box<dyn Error>> {
         let tree = sled::open(&self.path)?;
-        let v = tree.get(hex::decode(fingerprint)?)?
+        let v = tree
+            .get(hex::decode(fingerprint)?)?
             .ok_or(crate::error::NotFoundError::new(fingerprint))?;
-        let key = SignedSecretKey::from_armor_single(
-            Cursor::new(v.to_vec()))?;
+        let key = SignedSecretKey::from_armor_single(Cursor::new(v.to_vec()))?;
         Ok(key.0)
     }
 
-    async fn list(&self, ) -> Result<Vec<String>, Box<dyn Error>> {
+    async fn list(&self) -> Result<Vec<String>, Box<dyn Error>> {
         let tree = sled::open(&self.path)?;
         let mut keys = std::vec::Vec::<String>::new();
         for e in tree.iter() {
