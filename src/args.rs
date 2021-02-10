@@ -156,7 +156,7 @@ impl ClapArgumentLoader {
             Privilege::Normal
         };
 
-        fn load_arg<P: AsRef<Path>+std::fmt::Debug>(f: Option<P>) -> Result<Option<String>, Box<dyn Error>> {
+        fn load_arg<P: AsRef<Path>>(f: Option<P>) -> Result<Option<String>, Box<dyn Error>> {
             match f {
                 Some(v) => {
                     let mut file = File::open(v)?;

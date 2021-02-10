@@ -21,7 +21,7 @@ categories = ["command-line-utilities"]
     opt-level = 3
 
 [dependencies]
-async-trait = "0.1.24"
+async-trait = "0.1.42"
 clap = "2.33.0"
 dialoguer = "0.7.1"
 pgp = "0.7.1"

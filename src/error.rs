@@ -23,6 +23,5 @@ macro_rules! make_error {
     };
 }
 
-make_error!(GenericError);
 make_error!(ArgumentError);
 make_error!(NotFoundError);
