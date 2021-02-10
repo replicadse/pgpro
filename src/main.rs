@@ -44,9 +44,9 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
                 .compress(CompressionAlgorithm::ZLIB)?;
             let mut rng = rand::thread_rng();
             let msg_encrypted = message.encrypt_to_keys(&mut rng, SymmetricKeyAlgorithm::AES256, &[&key.public_key()][..])?;
-            let msg_encrypted_sturing = msg_encrypted.to_armored_string(None)?;
+            let msg_encrypted_content = msg_encrypted.to_armored_bytes(None)?;
             let mut stdout = std::io::stdout();
-            stdout.write_all(&msg_encrypted_string.as_bytes())?;
+            stdout.write_all(&msg_encrypted_content)?;
             stdout.flush()?;
         }
         Command::Decrypt {
@@ -58,10 +58,10 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
                 || "".to_owned(), 
                 || pass.unwrap(), 
                 &[&key])?;
-            let mut msg_decrypted = msg_decrypter.0.next().unwrap()?;
-            msg_decrypted = msg_decrypted.decompress()?;
+            let msg_decrypted = msg_decrypter.0.next().unwrap()?.decompress()?;
+            let msg_decrypted_content = msg_decrypted.get_content()?.unwrap();
             let mut stdout = std::io::stdout();
-            stdout.write_all(&msg_decrypted.get_content()?.unwrap())?;
+            stdout.write_all(&msg_decrypted_content)?;
             stdout.flush()?;
         }
     }
