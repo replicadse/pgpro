@@ -1,8 +1,9 @@
+use args::Command;
 use pgp::{Deserializable, Message, PublicKey, types::{KeyTrait, SecretKeyTrait}};
 use pgp::SignedSecretKey;
 use pgp::SecretKeyParams;
 use futures::executor::block_on;
-use std::error::Error;
+use std::{error::Error, io::{Cursor, Write, stdout}};
 use std::result::Result;
 use pgp::composed::{
     KeyType, SecretKey, SecretKeyParamsBuilder,
@@ -13,6 +14,7 @@ use pgp::types::CompressionAlgorithm;
 use smallvec::smallvec;
 
 mod args;
+mod error;
 
 async fn message(key: &PublicKey) -> Result<String, Box<dyn Error>> {
     let msg = Message::new_literal("", "hi").compress(CompressionAlgorithm::ZLIB)?;
@@ -36,13 +38,46 @@ async fn message2(msg: &str, key: &SignedSecretKey) -> Result<String, Box<dyn Er
 
 async fn main_async() -> Result<(), Box<dyn Error>> {
     let cmd = args::ClapArgumentLoader::load().await?;
-
-    // let x: SignedSecretKey = generate().await?;
-    // let msg = message(&x.public_key()).await?;
-    // println!("{}", message2(&msg, &x).await?);
-    // store(&x).await?;
-    // list().await?;
-
+    match cmd.command {
+        Command::GenerateKey {..} => {
+            let x = generate().await?;
+            store(&x).await?;
+            println!("Key was created (fingerprint): {}", hex::encode(&x.fingerprint()));
+        }
+        Command::ListKeys => {
+            for k in list().await? {
+                println!("{}", k);
+            }
+        }
+        Command::Encrypt {
+            key, pass, msg,
+        } => {
+            let key = get(&key.unwrap()).await?;
+            let msg = Message::new_literal("", &msg.unwrap())
+                .compress(CompressionAlgorithm::ZLIB)?;
+            let mut rng = rand::thread_rng();
+            let msgenc = msg.encrypt_to_keys(&mut rng, SymmetricKeyAlgorithm::AES256, &[&key.public_key()][..])?;
+            let msgstr = msgenc.to_armored_string(None)?;
+            let mut stdout = std::io::stdout();
+            stdout.write_all(&msgstr.as_bytes())?;
+            stdout.flush()?;
+        }
+        Command::Decrypt {
+            key, pass, msg,
+        } => {
+            let key = get(&key.unwrap()).await?;
+            let msg_t = Message::from_string(&msg.unwrap())?;
+            let mut msg_d = msg_t.0.decrypt(
+                || "".to_owned(), 
+                || pass.unwrap(), 
+                &[&key])?;
+            let mut msg_dec = msg_d.0.next().unwrap()?;
+            msg_dec = msg_dec.decompress()?;
+            let mut stdout = std::io::stdout();
+            stdout.write_all(&msg_dec.get_content()?.unwrap())?;
+            stdout.flush()?;
+        }
+    }
     Ok(())
 }
 
@@ -75,14 +110,23 @@ async fn generate() -> Result<SignedSecretKey, Box<dyn Error>> {
     Ok(k.sign(|| { String::from("test") })?)
 }
 
-async fn list() -> Result<(), Box<dyn Error>> {
+async fn list() -> Result<Vec<String>, Box<dyn Error>> {
     let tree = sled::open("./store")?;
+    let mut keys = std::vec::Vec::<String>::new();
     for e in tree.iter() {
         let v = e?;
-        println!("{}", hex::encode(&v.0));
-        println!("{}", String::from_utf8(v.1.to_vec())?);
+        keys.push(hex::encode(&v.0));
     }
-    Ok(())
+    Ok(keys)
+}
+
+async fn get(fp: &str) -> Result<SignedSecretKey, Box<dyn Error>> {
+    let tree = sled::open("./store")?;
+    let v = tree.get(hex::decode(fp)?)?
+        .ok_or(crate::error::NotFoundError::new(fp))?;
+    let key = SignedSecretKey::from_armor_single(
+        Cursor::new(v.to_vec()))?;
+    Ok(key.0)
 }
 
 async fn store(key: &SignedSecretKey) -> Result<(), Box<dyn Error>> {

@@ -1,27 +1,9 @@
-use std::{fmt::Display, fs::File, io::Read, path::Path, result::Result};
+use std::{fs::File, io::Read, path::Path, result::Result};
 use std::error::Error;
 
-use clap::{Arg, ArgMatches};
+use crate::error::ArgumentError;
 
 #[derive(Debug)]
-struct ArgumentError {
-    details: String,
-}
-impl ArgumentError {
-    fn new(msg: &str) -> Self {
-        Self {
-            details: msg.to_owned()
-        }
-    }
-}
-impl Display for ArgumentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.details)
-    }
-}
-impl Error for ArgumentError{}
-
-
 pub struct CallArgs {
     pub privilege: Privilege,
     pub command: Command,
@@ -36,25 +18,35 @@ impl CallArgs {
     }
 }
 
+#[derive(Debug)]
 pub enum Privilege {
     Normal,
     Experimental,
 }
 
+#[derive(Debug)]
 pub enum Algorithm {
     RSA(u16),
 }
 
+#[derive(Debug)]
 pub enum Command {
-    Generate {
+    GenerateKey {
         pass: Option<String>,
         owner: Option<String>,
         algo: Option<Algorithm>,
     },
+    ListKeys,
     Encrypt {
+        key: Option<String>,
         pass: Option<String>,
         msg: Option<String>,
     },
+    Decrypt {
+        key: Option<String>,
+        pass: Option<String>,
+        msg: Option<String>,
+    }
 }
 
 pub struct ClapArgumentLoader {}
@@ -74,7 +66,7 @@ impl ClapArgumentLoader {
                     .required(false)
                     .takes_value(false),
             )
-            .subcommand(clap::App::new("generate")
+            .subcommand(clap::App::new("generate-key")
                 .about("")
                 .arg(clap::Arg::with_name("pass")
                     .short("p")
@@ -109,8 +101,45 @@ impl ClapArgumentLoader {
                     .required(false)
                     .takes_value(true))
             )
+            .subcommand(clap::App::new("list-keys")
+                .about("")
+            )
             .subcommand(clap::App::new("encrypt")
                 .about("")
+                .arg(clap::Arg::with_name("key")
+                    .short("k")
+                    .long("key")
+                    .value_name("KEY")
+                    .help("")
+                    .multiple(false)
+                    .required(false)
+                    .takes_value(true))
+                .arg(clap::Arg::with_name("pass")
+                    .short("p")
+                    .long("pass")
+                    .value_name("PASS")
+                    .help("")
+                    .multiple(false)
+                    .required(false)
+                    .takes_value(true))
+                .arg(clap::Arg::with_name("message")
+                    .short("m")
+                    .long("message")
+                    .value_name("MESSAGE")
+                    .help("")
+                    .multiple(false)
+                    .required(false)
+                    .takes_value(true)))
+            .subcommand(clap::App::new("decrypt")
+                .about("")
+                .arg(clap::Arg::with_name("key")
+                    .short("k")
+                    .long("key")
+                    .value_name("KEY")
+                    .help("")
+                    .multiple(false)
+                    .required(false)
+                    .takes_value(true))
                 .arg(clap::Arg::with_name("pass")
                     .short("p")
                     .long("pass")
@@ -136,33 +165,46 @@ impl ClapArgumentLoader {
             Privilege::Normal
         };
 
-        let callargs = if let Some(args) = command.subcommand_matches("generate") {
+        fn load_arg<P: AsRef<Path>+std::fmt::Debug>(f: Option<P>) -> Result<Option<String>, Box<dyn Error>> {
+            match f {
+                Some(v) => {
+                    let mut file = File::open(v)?;
+                    let mut buf = String::new();
+                    file.read_to_string(&mut buf)?;
+                    Ok(Some(buf))
+                },
+                None => Ok(None),
+            }
+        }
+
+        let callargs = if let Some(_) = command.subcommand_matches("generate-key") {
             Ok(CallArgs {
                 privilege,
-                command: Command::Generate {
+                command: Command::GenerateKey {
                     pass: Some(String::from("test")),
                     owner: Some(String::from("owner")),
                     algo: Some(Algorithm::RSA(2048)),
                 },
             })
-        }
-        else if let Some(v) = command.subcommand_matches("encrypt") {
-            fn load_arg<P: AsRef<Path>+std::fmt::Debug>(f: Option<P>) -> Result<Option<String>, Box<dyn Error>> {
-                println!("{:?}", f);
-                match f {
-                    Some(v) => {
-                        let mut file = File::open(v)?;
-                        let mut buf = String::new();
-                        file.read_to_string(&mut buf)?;
-                        Ok(Some(buf))
-                    },
-                    None => Ok(None),
-                }
-            }
-
+        } else if let Some(_) = command.subcommand_matches("list-keys") {
+            Ok(CallArgs {
+                privilege,
+                command: Command::ListKeys {},
+            })
+        } else if let Some(v) = command.subcommand_matches("encrypt") {
             Ok(CallArgs {
                 privilege,
                 command: Command::Encrypt {
+                    key: v.value_of("key").map(|v| v.to_owned()),
+                    pass: load_arg(v.value_of("pass"))?,
+                    msg: load_arg(v.value_of("message"))?,
+                },
+            })
+        } else if let Some(v) = command.subcommand_matches("decrypt") {
+            Ok(CallArgs {
+                privilege,
+                command: Command::Decrypt {
+                    key: v.value_of("key").map(|v| v.to_owned()),
                     pass: load_arg(v.value_of("pass"))?,
                     msg: load_arg(v.value_of("message"))?,
                 },
