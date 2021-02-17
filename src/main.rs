@@ -1,7 +1,7 @@
 use args::Command;
 use futures::executor::block_on;
-use pgp::composed::SubkeyParamsBuilder;
-use pgp::composed::{KeyType, SecretKey, SecretKeyParamsBuilder};
+use pgp::composed::{KeyType, SecretKey};
+use pgp::composed::SecretKeyParamsBuilder;
 use pgp::crypto::{HashAlgorithm, SymmetricKeyAlgorithm};
 use pgp::types::CompressionAlgorithm;
 use pgp::SecretKeyParams;
@@ -11,7 +11,7 @@ use pgp::{
     Deserializable, Message,
 };
 use smallvec::smallvec;
-use std::result::Result;
+use std::{result::Result};
 use std::{error::Error, io::Write};
 
 mod args;
@@ -27,19 +27,16 @@ async fn create_db() -> Result<Box<dyn Database>, Box<dyn Error>> {
 async fn main_async() -> Result<(), Box<dyn Error>> {
     let cmd = args::ClapArgumentLoader::load().await?;
     match cmd.command {
-        Command::GenerateKey { .. } => {
-            let x = generate().await?;
+        Command::GenerateKey { owner, pass, .. } => {
+            let x = generate(&owner.unwrap(), &pass.unwrap()).await?;
             create_db().await?.store(&x).await?;
-            println!(
-                "Key was created (fingerprint): {}",
-                hex::encode(&x.fingerprint()).to_ascii_uppercase()
-            );
+            println!("{}", hex::encode(&x.fingerprint()).to_ascii_uppercase());
         }
         Command::ListKeys => {
-            for k in create_db().await?.list().await? {
-                println!("Fingerprint: \t{}", hex::encode(k.fingerprint()));
-                println!("ID: \t\t{}", hex::encode(k.key_id()));
-                print!("Capabilities: \t");
+            fn print_key(k: &dyn KeyTrait, prefix: &str, context: &str) {
+                print!("{}", prefix);
+                print!("{}", hex::encode(k.fingerprint()).to_ascii_uppercase());
+                print!(" ({})", hex::encode(k.key_id()).to_ascii_uppercase());
                 let mut capabilities = Vec::<String>::new();
                 if k.is_signing_key() {
                     capabilities.push("sign".to_owned());
@@ -47,8 +44,21 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
                 if k.is_encryption_key() {
                     capabilities.push("encrypt".to_owned());
                 }
-                println!("{}", capabilities.join(", "));
+                print!(" ({})", capabilities.join(", "));
+                if !context.is_empty() {
+                    print!(" ({})", context);
+                }
                 println!();
+            }
+            for k in create_db().await?.list().await? {
+                print_key(&k, "", "secret, public");
+                // print_key(&k.public_key(), "", "public");
+                for subk in k.secret_subkeys.iter() {
+                    print_key(subk, "\t", "secret sub");
+                }
+                for subk in k.public_subkeys.iter() {
+                    print_key(subk, "\t", "public sub");
+                }
             }
         }
         Command::Encrypt { key, msg } => {
@@ -83,24 +93,16 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn generate() -> Result<SignedSecretKey, Box<dyn Error>> {
+async fn generate(user_id: &str, pass: &str) -> Result<SignedSecretKey, Box<dyn Error>> {
     let key_params: SecretKeyParams = SecretKeyParamsBuilder::default()
-        .key_type(KeyType::Rsa(2048))
+        .key_type(KeyType::Rsa(4096))
         .can_create_certificates(true)
         .can_sign(true)
-        .primary_user_id("Me <me@mail.com>".into())
+        .primary_user_id(user_id.into())
         .preferred_symmetric_algorithms(smallvec![SymmetricKeyAlgorithm::AES256])
         .preferred_hash_algorithms(smallvec![HashAlgorithm::SHA2_512])
         .preferred_compression_algorithms(smallvec![CompressionAlgorithm::ZLIB])
-        .passphrase(Some("test".to_string()))
-        .subkey(
-            SubkeyParamsBuilder::default()
-                .key_type(KeyType::Rsa(4096))
-                .passphrase(None)
-                .can_encrypt(true)
-                .build()
-                .unwrap(),
-        )
+        .passphrase(Some(pass.into()))
         .build()?;
     let k: SecretKey = key_params.generate()?;
     Ok(k.sign(|| String::from("test"))?)
