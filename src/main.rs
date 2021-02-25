@@ -18,7 +18,7 @@ mod args;
 mod db;
 mod error;
 
-use db::{Database, SledDatabase};
+use db::{Database, sled::Database};
 
 async fn create_db() -> Result<Box<dyn Database>, Box<dyn Error>> {
     Ok(Box::new(SledDatabase::new("./store")))
