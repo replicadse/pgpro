@@ -18,10 +18,11 @@ mod args;
 mod db;
 mod error;
 
-use db::{Database, sled::Database};
+use db::{Database, keyring::KeyringDatabase, sled::SledDatabase};
 
 async fn create_db() -> Result<Box<dyn Database>, Box<dyn Error>> {
-    Ok(Box::new(SledDatabase::new("./store")))
+    //Ok(Box::new(SledDatabase::new("./store")))
+    Ok(Box::new(KeyringDatabase::new()))
 }
 
 async fn main_async() -> Result<(), Box<dyn Error>> {

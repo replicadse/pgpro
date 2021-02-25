@@ -10,7 +10,39 @@ pub trait Database {
     async fn list(&self) -> Result<Vec<SignedSecretKey>, Box<dyn Error>>;
 }
 
-pub mod Sled {
+pub mod keyring {
+    use crate::db::Database;
+    use std::error::Error;
+    use async_trait::async_trait;
+    use pgp::SignedSecretKey;
+
+    pub struct KeyringDatabase {
+    }
+
+    impl KeyringDatabase {
+        pub fn new() -> Self {
+            Self {
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Database for KeyringDatabase {
+        async fn store(&self, key: &SignedSecretKey) -> Result<(), Box<dyn Error>> {
+            unimplemented!()
+        }
+
+        async fn read(&self, fingerprint: &str) -> Result<SignedSecretKey, Box<dyn Error>> {
+            unimplemented!()
+        }
+
+        async fn list(&self) -> Result<Vec<SignedSecretKey>, Box<dyn Error>> {
+            unimplemented!()
+        }
+    }
+}
+
+pub mod sled {
     use crate::db::Database;
     use std::error::Error;
     use std::io::Cursor;
