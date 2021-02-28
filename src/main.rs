@@ -18,11 +18,11 @@ mod args;
 mod db;
 mod error;
 
-use db::{Database, keyring::KeyringDatabase, sled::SledDatabase};
+use db::{Database, rustbreak::RustbreakDatabase}; //keyring::KeyringDatabase, sled::SledDatabase};
 
 async fn create_db() -> Result<Box<dyn Database>, Box<dyn Error>> {
     //Ok(Box::new(SledDatabase::new("./store")))
-    Ok(Box::new(KeyringDatabase::new()))
+    Ok(Box::new(RustbreakDatabase::new("./store")?))
 }
 
 async fn main_async() -> Result<(), Box<dyn Error>> {
