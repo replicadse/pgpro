@@ -11,17 +11,28 @@ pub trait Database {
 }
 
 pub mod rustbreak {
-    use crate::db::Database;
-    use std::error::Error;
+    use std::{
+        collections::HashMap,
+        error::Error,
+        io::Cursor,
+    };
+
     use async_trait::async_trait;
-    use pgp::{SignedSecretKey, Deserializable, types::KeyTrait};
-    use std::collections::HashMap;
-    use std::io::Cursor;
+    use pgp::{
+        types::KeyTrait,
+        Deserializable,
+        SignedSecretKey,
+    };
+
+    use crate::db::Database;
     extern crate rustbreak;
-    use rustbreak::{FileDatabase, deser::Ron};
+    use rustbreak::{
+        deser::Ron,
+        FileDatabase,
+    };
 
     pub struct RustbreakDatabase {
-       db: FileDatabase::<HashMap<String, String>, Ron>,
+        db: FileDatabase<HashMap<String, String>, Ron>,
     }
 
     impl RustbreakDatabase {
@@ -46,8 +57,9 @@ pub mod rustbreak {
 
         async fn read(&self, fingerprint: &str) -> Result<SignedSecretKey, Box<dyn Error>> {
             Ok(self.db.read(|db| {
-                SignedSecretKey::from_armor_single(
-                    Cursor::new(db.get(fingerprint).unwrap().as_bytes())).unwrap().0
+                SignedSecretKey::from_armor_single(Cursor::new(db.get(fingerprint).unwrap().as_bytes()))
+                    .unwrap()
+                    .0
             })?)
         }
 
@@ -55,8 +67,7 @@ pub mod rustbreak {
             Ok(self.db.read(|db| {
                 let mut vals = Vec::<SignedSecretKey>::new();
                 for (_, v) in db {
-                    let key = SignedSecretKey::from_armor_single(
-                        Cursor::new(v.as_bytes())).unwrap().0;
+                    let key = SignedSecretKey::from_armor_single(Cursor::new(v.as_bytes())).unwrap().0;
                     vals.push(key);
                 }
                 vals
@@ -66,20 +77,20 @@ pub mod rustbreak {
 }
 
 pub mod keyring {
-    use crate::db::Database;
     use std::error::Error;
+
     use async_trait::async_trait;
     use pgp::SignedSecretKey;
+
+    use crate::db::Database;
     extern crate keyring;
     use keyring::Keyring;
 
-    pub struct KeyringDatabase {
-    }
+    pub struct KeyringDatabase {}
 
     impl KeyringDatabase {
         pub fn new() -> Self {
-            Self {
-            }
+            Self {}
         }
     }
 
@@ -102,11 +113,19 @@ pub mod keyring {
 }
 
 pub mod sled {
-    use crate::db::Database;
-    use std::error::Error;
-    use std::io::Cursor;
+    use std::{
+        error::Error,
+        io::Cursor,
+    };
+
     use async_trait::async_trait;
-    use pgp::{types::KeyTrait, Deserializable, SignedSecretKey};
+    use pgp::{
+        types::KeyTrait,
+        Deserializable,
+        SignedSecretKey,
+    };
+
+    use crate::db::Database;
 
     pub struct SledDatabase {
         path: String,
@@ -114,9 +133,7 @@ pub mod sled {
 
     impl SledDatabase {
         pub fn new(path: &str) -> Self {
-            Self {
-                path: path.to_owned(),
-            }
+            Self { path: path.to_owned() }
         }
     }
 

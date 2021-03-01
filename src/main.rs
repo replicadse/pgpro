@@ -1,39 +1,75 @@
+use std::{
+    cell::Cell,
+    error::Error,
+    io::Write,
+    result::Result,
+    sync::{
+        Arc,
+        Mutex,
+    },
+    thread,
+    time::Duration,
+};
+
 use args::Command;
+use db::{
+    rustbreak::RustbreakDatabase,
+    Database,
+};
 use futures::executor::block_on;
-use pgp::composed::{KeyType, SecretKey};
-use pgp::composed::SecretKeyParamsBuilder;
-use pgp::crypto::{HashAlgorithm, SymmetricKeyAlgorithm};
-use pgp::types::CompressionAlgorithm;
-use pgp::SecretKeyParams;
-use pgp::SignedSecretKey;
 use pgp::{
-    types::{KeyTrait, SecretKeyTrait},
-    Deserializable, Message,
+    composed::{
+        KeyType,
+        SecretKey,
+        SecretKeyParamsBuilder,
+    },
+    crypto::{
+        HashAlgorithm,
+        SymmetricKeyAlgorithm,
+    },
+    types::{
+        CompressionAlgorithm,
+        KeyTrait,
+        SecretKeyTrait,
+    },
+    Deserializable,
+    Message,
+    SecretKeyParams,
+    SignedSecretKey,
 };
 use smallvec::smallvec;
-use std::{result::Result};
-use std::{error::Error, io::Write};
 
 mod args;
 mod db;
 mod error;
 
-use db::{Database, rustbreak::RustbreakDatabase}; //keyring::KeyringDatabase, sled::SledDatabase};
-
 async fn create_db() -> Result<Box<dyn Database>, Box<dyn Error>> {
-    //Ok(Box::new(SledDatabase::new("./store")))
     Ok(Box::new(RustbreakDatabase::new("./store")?))
 }
 
 async fn main_async() -> Result<(), Box<dyn Error>> {
     let cmd = args::ClapArgumentLoader::load().await?;
     match cmd.command {
-        Command::GenerateKey { owner, pass, .. } => {
+        | Command::GenerateKey { owner, pass, .. } => {
+            let gok = Arc::new(Mutex::new(Cell::new(false)));
+            let gok_thread = gok.clone();
+            print!("Generating key, this can take a while");
+            std::io::stdout().flush().unwrap();
+            let t = thread::spawn(move || loop {
+                print!(".");
+                std::io::stdout().flush().unwrap();
+                if gok_thread.lock().unwrap().get() {
+                    return;
+                }
+                thread::sleep(Duration::from_secs(1));
+            });
             let x = generate(&owner.unwrap(), &pass.unwrap()).await?;
             create_db().await?.store(&x).await?;
+            gok.lock().unwrap().set(true);
+            t.join().unwrap();
             println!("{}", hex::encode(&x.fingerprint()).to_ascii_uppercase());
-        }
-        Command::ListKeys => {
+        },
+        | Command::ListKeys => {
             fn print_key(k: &dyn KeyTrait, prefix: &str, context: &str) {
                 print!("{}", prefix);
                 print!("{}", hex::encode(k.fingerprint()).to_ascii_uppercase());
@@ -61,35 +97,28 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
                     print_key(subk, "\t", "public sub");
                 }
             }
-        }
-        Command::Encrypt { key, msg } => {
+        },
+        | Command::Encrypt { key, msg } => {
             let key = create_db().await?.read(&key.unwrap()).await?;
-            let message =
-                Message::new_literal("", &msg.unwrap()).compress(CompressionAlgorithm::ZLIB)?;
+            let message = Message::new_literal("", &msg.unwrap()).compress(CompressionAlgorithm::ZLIB)?;
             let mut rng = rand::thread_rng();
-            let msg_encrypted = message.encrypt_to_keys(
-                &mut rng,
-                SymmetricKeyAlgorithm::AES256,
-                &[&key.public_key()][..],
-            )?;
+            let msg_encrypted =
+                message.encrypt_to_keys(&mut rng, SymmetricKeyAlgorithm::AES256, &[&key.public_key()][..])?;
             let msg_encrypted_content = msg_encrypted.to_armored_bytes(None)?;
             let mut stdout = std::io::stdout();
             stdout.write_all(&msg_encrypted_content)?;
             stdout.flush()?;
-        }
-        Command::Decrypt { key, pass, msg } => {
+        },
+        | Command::Decrypt { key, pass, msg } => {
             let key = create_db().await?.read(&key.unwrap()).await?;
             let message = Message::from_string(&msg.unwrap())?;
-            let mut msg_decrypter =
-                message
-                    .0
-                    .decrypt(|| "".to_owned(), || pass.unwrap(), &[&key])?;
+            let mut msg_decrypter = message.0.decrypt(|| "".to_owned(), || pass.unwrap(), &[&key])?;
             let msg_decrypted = msg_decrypter.0.next().unwrap()?.decompress()?;
             let msg_decrypted_content = msg_decrypted.get_content()?.unwrap();
             let mut stdout = std::io::stdout();
             stdout.write_all(&msg_decrypted_content)?;
             stdout.flush()?;
-        }
+        },
     }
     Ok(())
 }

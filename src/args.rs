@@ -1,5 +1,10 @@
-use std::error::Error;
-use std::{fs::File, io::Read, path::Path, result::Result};
+use std::{
+    error::Error,
+    fs::File,
+    io::Read,
+    path::Path,
+    result::Result,
+};
 
 use crate::error::ArgumentError;
 
@@ -12,8 +17,8 @@ pub struct CallArgs {
 impl CallArgs {
     pub async fn validate(&self) -> Result<(), Box<dyn Error>> {
         match self.privilege {
-            Privilege::Normal => Ok(()),
-            Privilege::Experimental => Ok(()),
+            | Privilege::Normal => Ok(()),
+            | Privilege::Experimental => Ok(()),
         }
     }
 }
@@ -178,13 +183,13 @@ impl ClapArgumentLoader {
 
         fn load_arg<P: AsRef<Path>>(f: Option<P>) -> Result<Option<String>, Box<dyn Error>> {
             match f {
-                Some(v) => {
+                | Some(v) => {
                     let mut file = File::open(v)?;
                     let mut buf = String::new();
                     file.read_to_string(&mut buf)?;
                     Ok(Some(buf))
-                }
-                None => Ok(None),
+                },
+                | None => Ok(None),
             }
         }
 
