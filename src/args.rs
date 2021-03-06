@@ -79,6 +79,7 @@ impl ClapArgumentLoader {
                     .help("Sets the verbosity.")
                     .multiple(false)
                     .required(false)
+                    .takes_value(false)
             )
             .subcommand(
                 clap::App::new("generate-key")
