@@ -13,15 +13,15 @@ use std::{
 
 use args::Command;
 use db::{
-    rustbreak::RustbreakDatabase,
+    sled::SledDatabase,
     Database,
 };
 use futures::executor::block_on;
 use pgp::{
     composed::{
+        key::SecretKeyParamsBuilder,
         KeyType,
         SecretKey,
-        SecretKeyParamsBuilder,
     },
     crypto::{
         HashAlgorithm,
@@ -44,7 +44,7 @@ mod db;
 mod error;
 
 async fn create_db() -> Result<Box<dyn Database>, Box<dyn Error>> {
-    Ok(Box::new(RustbreakDatabase::new("./store")?))
+    Ok(Box::new(SledDatabase::new("./store")))
 }
 
 async fn main_async() -> Result<(), Box<dyn Error>> {
@@ -63,7 +63,7 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
                 }
                 thread::sleep(Duration::from_secs(1));
             });
-            let x = generate(&owner.unwrap(), &pass.unwrap()).await?;
+            let x = generate(&owner, &pass).await?;
             create_db().await?.store(&x).await?;
             gok.lock().unwrap().set(true);
             t.join().unwrap();
@@ -99,8 +99,8 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
             }
         },
         | Command::Encrypt { key, msg } => {
-            let key = create_db().await?.read(&key.unwrap()).await?;
-            let message = Message::new_literal("", &msg.unwrap()).compress(CompressionAlgorithm::ZLIB)?;
+            let key = create_db().await?.read(&key).await?;
+            let message = Message::new_literal("", &msg).compress(CompressionAlgorithm::ZLIB)?;
             let mut rng = rand::thread_rng();
             let msg_encrypted =
                 message.encrypt_to_keys(&mut rng, SymmetricKeyAlgorithm::AES256, &[&key.public_key()][..])?;
@@ -110,9 +110,9 @@ async fn main_async() -> Result<(), Box<dyn Error>> {
             stdout.flush()?;
         },
         | Command::Decrypt { key, pass, msg } => {
-            let key = create_db().await?.read(&key.unwrap()).await?;
-            let message = Message::from_string(&msg.unwrap())?;
-            let mut msg_decrypter = message.0.decrypt(|| "".to_owned(), || pass.unwrap(), &[&key])?;
+            let key = create_db().await?.read(&key).await?;
+            let message = Message::from_string(&msg)?;
+            let mut msg_decrypter = message.0.decrypt(|| "".to_owned(), || pass, &[&key])?;
             let msg_decrypted = msg_decrypter.0.next().unwrap()?.decompress()?;
             let msg_decrypted_content = msg_decrypted.get_content()?.unwrap();
             let mut stdout = std::io::stdout();

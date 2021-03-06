@@ -11,6 +11,7 @@ use crate::error::ArgumentError;
 #[derive(Debug)]
 pub struct CallArgs {
     pub privilege: Privilege,
+    pub verbosity: bool,
     pub command: Command,
 }
 
@@ -37,19 +38,19 @@ pub enum Algorithm {
 #[derive(Debug)]
 pub enum Command {
     GenerateKey {
-        pass: Option<String>,
-        owner: Option<String>,
-        algo: Option<Algorithm>,
+        pass: String,
+        owner: String,
+        algo: Algorithm,
     },
     ListKeys,
     Encrypt {
-        key: Option<String>,
-        msg: Option<String>,
+        key: String,
+        msg: String,
     },
     Decrypt {
-        key: Option<String>,
-        pass: Option<String>,
-        msg: Option<String>,
+        key: String,
+        pass: String,
+        msg: String,
     },
 }
 
@@ -70,6 +71,15 @@ impl ClapArgumentLoader {
                     .required(false)
                     .takes_value(false),
             )
+            .arg(
+                clap::Arg::with_name("verbose")
+                    .short("v")
+                    .long("verbose")
+                    .value_name("VERBOSE")
+                    .help("Sets the verbosity.")
+                    .multiple(false)
+                    .required(false)
+            )
             .subcommand(
                 clap::App::new("generate-key")
                     .about("")
@@ -79,26 +89,7 @@ impl ClapArgumentLoader {
                             .long("pass")
                             .value_name("PASS")
                             .help("")
-                            .multiple(false)
-                            .required(false)
-                            .takes_value(true),
-                    )
-                    .arg(
-                        clap::Arg::with_name("bytes")
-                            .short("b")
-                            .long("bytes")
-                            .value_name("LENGTH")
-                            .help("")
-                            .multiple(false)
-                            .required(false)
-                            .takes_value(true),
-                    )
-                    .arg(
-                        clap::Arg::with_name("algorithm")
-                            .short("t")
-                            .long("type")
-                            .value_name("ALGORITHM")
-                            .help("")
+                            .default_value("")
                             .multiple(false)
                             .required(false)
                             .takes_value(true),
@@ -109,6 +100,7 @@ impl ClapArgumentLoader {
                             .long("owner")
                             .value_name("OWNER")
                             .help("")
+                            .default_value("")
                             .multiple(false)
                             .required(false)
                             .takes_value(true),
@@ -181,47 +173,48 @@ impl ClapArgumentLoader {
             Privilege::Normal
         };
 
-        fn load_arg<P: AsRef<Path>>(f: Option<P>) -> Result<Option<String>, Box<dyn Error>> {
-            match f {
-                | Some(v) => {
-                    let mut file = File::open(v)?;
-                    let mut buf = String::new();
-                    file.read_to_string(&mut buf)?;
-                    Ok(Some(buf))
-                },
-                | None => Ok(None),
-            }
+        let verbosity = command.is_present("verbose");
+
+        fn load_arg<P: AsRef<Path>>(f: P) -> Result<String, Box<dyn Error>> {
+            let mut file = File::open(f)?;
+            let mut buf = String::new();
+            file.read_to_string(&mut buf)?;
+            Ok(buf)
         }
 
-        let callargs = if let Some(_) = command.subcommand_matches("generate-key") {
+        let callargs = if let Some(sc) = command.subcommand_matches("generate-key") {
             Ok(CallArgs {
                 privilege,
+                verbosity,
                 command: Command::GenerateKey {
-                    pass: Some(String::from("test")),
-                    owner: Some(String::from("owner")),
-                    algo: Some(Algorithm::RSA(2048)),
+                    pass: sc.value_of("pass").unwrap().to_owned(),
+                    owner: sc.value_of("owner").unwrap().to_owned(),
+                    algo: Algorithm::RSA(4096),
                 },
             })
         } else if let Some(_) = command.subcommand_matches("list-keys") {
             Ok(CallArgs {
                 privilege,
+                verbosity,
                 command: Command::ListKeys {},
             })
         } else if let Some(v) = command.subcommand_matches("encrypt") {
             Ok(CallArgs {
                 privilege,
+                verbosity,
                 command: Command::Encrypt {
-                    key: v.value_of("key").map(|v| v.to_owned()),
-                    msg: load_arg(v.value_of("message"))?,
+                    key: v.value_of("key").unwrap().to_owned(),
+                    msg: load_arg(v.value_of("message").unwrap())?,
                 },
             })
         } else if let Some(v) = command.subcommand_matches("decrypt") {
             Ok(CallArgs {
                 privilege,
+                verbosity,
                 command: Command::Decrypt {
-                    key: v.value_of("key").map(|v| v.to_owned()),
-                    pass: load_arg(v.value_of("pass"))?,
-                    msg: load_arg(v.value_of("message"))?,
+                    key: v.value_of("key").unwrap().to_owned(),
+                    pass: load_arg(v.value_of("pass").unwrap())?,
+                    msg: load_arg(v.value_of("message").unwrap())?,
                 },
             })
         } else {
